@@ -53,18 +53,18 @@ def create_visualizations(data, output_prefix):
         plt.figure(figsize=(10, 8))
         sns.heatmap(numerical_data.corr(), annot=True, cmap='coolwarm', fmt='.2f')
         plt.title("Correlation Heatmap")
-        plt.savefig(f"{output_prefix}_correlation_heatmap.png")
+        plt.savefig(f"{output_prefix}/correlation_heatmap.png")
         plt.close()
-        print(f"Saved {output_prefix}_correlation_heatmap.png")
+        print(f"Saved {output_prefix}/correlation_heatmap.png")
 
     # Visualization 2: Missing value heatmap
     if data.isnull().any().any():
         plt.figure(figsize=(10, 6))
         sns.heatmap(data.isnull(), cbar=False, cmap="viridis")
         plt.title("Missing Values Heatmap")
-        plt.savefig(f"{output_prefix}_missing_values.png")
+        plt.savefig(f"{output_prefix}/missing_values.png")
         plt.close()
-        print(f"Saved {output_prefix}_missing_values.png")
+        print(f"Saved {output_prefix}/missing_values.png")
 
     # Visualization 3: Example boxplot for the first numerical column (if any)
     if not numerical_data.empty:
@@ -72,9 +72,9 @@ def create_visualizations(data, output_prefix):
         plt.figure(figsize=(8, 6))
         sns.boxplot(x=data[first_col])
         plt.title(f"Boxplot of {first_col}")
-        plt.savefig(f"{output_prefix}_boxplot.png")
+        plt.savefig(f"{output_prefix}/boxplot.png")
         plt.close()
-        print(f"Saved {output_prefix}_boxplot.png")
+        print(f"Saved {output_prefix}/boxplot.png")
 
 # Function to generate narrative using LLM
 import requests
@@ -124,9 +124,9 @@ def generate_narrative(data_report, output_prefix):
         narrative = response.json()["choices"][0]["message"]["content"]
 
         # Save the narrative to a README.md file
-        with open(f"{output_prefix}_README.md", "w") as f:
+        with open("README.md", "w") as f:
             f.write(narrative)
-        print(f"Saved narrative as {output_prefix}_README.md")
+        print(f"Saved narrative as README.md")
 
         # Display additional cost headers
         cost = response.headers.get("cost")
