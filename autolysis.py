@@ -41,8 +41,8 @@ def inspect_data(data):
         'summary_statistics': data.describe(include='all').to_dict()
     }
     return report
-
 # Function to detect outliers
+outliar_columns = []
 def detect_outliers(data):
     numerical_data = data.select_dtypes(include=['number'])
     outlier_report = {}
@@ -53,8 +53,12 @@ def detect_outliers(data):
         lower_bound = q1 - 1.5 * iqr
         upper_bound = q3 + 1.5 * iqr
         outliers = numerical_data[(numerical_data[col] < lower_bound) | (numerical_data[col] > upper_bound)]
+        if not outliers.empty:
+            outliar_columns.append(col)
         outlier_report[col] = len(outliers)
+    print(f"Columns with outliers: {outliar_columns}")
     return outlier_report
+
 
 # Function to generate visualizations
 def create_visualizations(data, output_prefix):
@@ -69,28 +73,37 @@ def create_visualizations(data, output_prefix):
         plt.close()
         print(f"Saved {output_prefix}/correlation_heatmap.png")
 
-        # Boxplot for numerical features
-        for col in numerical_data.columns:
+        # Boxplot for columns with outliers only
+        for col in outliar_columns:
             plt.figure(figsize=(8, 6))
             sns.boxplot(x=numerical_data[col])
-            plt.title(f"Boxplot of {col}")
+            plt.title(f"Boxplot of {col} (Outliers)")
             plt.savefig(f"{output_prefix}/boxplot_{col}.png")
             plt.close()
             print(f"Saved {output_prefix}/boxplot_{col}.png")
 
-
+        # Distribution plots with log scaling for high values
         for col in numerical_data.columns:
-                    # Skip if column has low cardinality (too few unique values)
-            if numerical_data[col].nunique() <= 4:
-                print(f"Skipping distribution plot for {col}: Low cardinality (only {numerical_data[col].nunique()} unique values).")
-                continue
-
-            plt.figure(figsize=(8, 6))
-            sns.histplot(numerical_data[col], kde=True)
-            plt.title(f"Distribution of {col}")
-            plt.savefig(f"{output_prefix}/distribution_{col}.png")
-            plt.close()
-            print(f"Saved {output_prefix}/distribution_{col}.png")
+            unique_values = numerical_data[col].nunique()
+            variance = numerical_data[col].var()
+            
+            if unique_values > 10 and variance > 0.1:  # Skip columns with low cardinality or low variance
+                plt.figure(figsize=(8, 6))
+                
+                # Apply log scaling if max value is significantly high
+                if numerical_data[col].max() > 1e6:
+                    scaled_data = np.log1p(numerical_data[col])  # log1p avoids log(0) issues
+                    sns.histplot(scaled_data, kde=True, bins=30)
+                    plt.title(f"Log-scaled Distribution of {col}")
+                else:
+                    sns.histplot(numerical_data[col], kde=True, bins=30)
+                    plt.title(f"Distribution of {col}")
+                
+                plt.savefig(f"{output_prefix}/distribution_{col}.png")
+                plt.close()
+                print(f"Saved {output_prefix}/distribution_{col}.png")
+            else:
+                print(f"Skipping distribution plot for {col}: low cardinality ({unique_values}) or low variance ({variance:.3f}).")
 
     # Missing value heatmap
     if data.isnull().any().any():
@@ -107,9 +120,9 @@ def create_visualizations(data, output_prefix):
         plt.figure(figsize=(12, 8))
         dendrogram(linkage_matrix, labels=data.index.tolist())
         plt.title("Hierarchical Clustering Dendrogram")
-        plt.savefig(f"{output_prefix}_dendrogram.png")
+        plt.savefig(f"{output_prefix}/dendrogram.png")
         plt.close()
-        print(f"Saved {output_prefix}_dendrogram.png")
+        print(f"Saved {output_prefix}/dendrogram.png")
     else:
         print("Numerical data contains non-finite values. Skipping dendrogram creation.")
 
@@ -127,9 +140,9 @@ def cluster_and_pca_analysis(data, output_prefix):
         
         sns.scatterplot(x=numerical_data.iloc[:, 0], y=numerical_data.iloc[:, 1], hue=clusters, palette='viridis')
         plt.title("K-Means Clustering")
-        plt.savefig(f"{output_prefix}_kmeans_clustering.png")
+        plt.savefig(f"{output_prefix}/kmeans_clustering.png")
         plt.close()
-        print(f"Saved {output_prefix}_kmeans_clustering.png")
+        print(f"Saved {output_prefix}/kmeans_clustering.png")
 
         # PCA
         pca = PCA(n_components=2)
@@ -138,9 +151,9 @@ def cluster_and_pca_analysis(data, output_prefix):
         data['PCA2'] = pca_result[:, 1]
         sns.scatterplot(x=data['PCA1'], y=data['PCA2'], hue=clusters, palette='viridis')
         plt.title("PCA Analysis")
-        plt.savefig(f"{output_prefix}_pca_analysis.png")
+        plt.savefig(f"{output_prefix}/pca_analysis.png")
         plt.close()
-        print(f"Saved {output_prefix}_pca_analysis.png")
+        print(f"Saved {output_prefix}/pca_analysis.png")
 
 
 # Generate narrative using LLM
@@ -178,9 +191,9 @@ def generate_narrative(data_report, output_prefix, outlier_report):
             return
 
         narrative = response.json()["choices"][0]["message"]["content"]
-        with open(f"{output_prefix}_README.md", "w") as f:
+        with open("README.md", "w") as f:
             f.write(narrative)
-        print(f"Saved narrative as {output_prefix}_README.md")
+        print(f"Saved narrative as README.md")
     except Exception as e:
         print(f"Error generating narrative: {e}")
 
